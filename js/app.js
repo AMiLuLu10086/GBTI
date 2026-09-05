@@ -95,12 +95,6 @@
       return;
     }
 
-    const meta = question.kind === 'core'
-      ? CORE_DIMENSIONS[question.dim].name
-      : question.kind === 'extra'
-        ? EXTRA_DIMENSIONS[question.dim].name
-        : '隐藏题';
-
     const options = question.options.map(function (option, optionIndex) {
       const value = getOptionValue(question, option);
       const code = String(optionIndex + 1);
@@ -119,7 +113,6 @@
       <article class="question">
         <div class="question-meta">
           <div class="badge">第 ${app.currentIndex + 1} / ${total} 题</div>
-          <div>${meta}</div>
         </div>
         <div class="question-title">${question.text}</div>
         <div class="options">${options}</div>
@@ -376,3 +369,4 @@
   document.addEventListener('keydown', handleKeydown);
   prevBtn.addEventListener('click', goPrev);
 })();
+
