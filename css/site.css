@@ -267,6 +267,11 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.test-actions {
+  display: flex;
+  gap: 12px;
+}
+
 .hint,
 .fun-note {
   color: var(--muted);
@@ -404,7 +409,13 @@ button:disabled {
     flex-direction: column;
   }
 
-  .test-footer .btn-primary {
+  .test-actions {
+    flex-direction: column;
+  }
+
+  .test-actions .btn-primary,
+  .test-actions .btn-secondary {
     width: 100%;
   }
 }
+

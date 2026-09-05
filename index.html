@@ -28,7 +28,10 @@
         <div id="questionList" class="question-list"></div>
         <div class="test-footer">
           <p id="testHint" class="hint">全部答完才会放行。</p>
-          <button id="submitBtn" class="btn-primary" disabled>提交审判</button>
+          <div class="test-actions">
+            <button id="prevBtn" class="btn-secondary" type="button">我选错了</button>
+            <button id="submitBtn" class="btn-primary" disabled>提交审判</button>
+          </div>
         </div>
       </div>
     </section>
@@ -49,6 +52,7 @@
         <div id="dimList" class="dim-list"></div>
         <p id="funNote" class="fun-note"></p>
         <div class="result-actions">
+          <button id="shotBtn" class="btn-secondary" type="button">截图</button>
           <button id="copyBtn" class="btn-secondary">复制结果文字</button>
           <button id="restartBtn" class="btn-primary">再测一次</button>
         </div>
@@ -60,6 +64,10 @@
   <script src="data/types.js"></script>
   <script src="data/questions.js"></script>
   <script src="js/scoring.js"></script>
+  <script src="js/html2canvas.min.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
+
+
+

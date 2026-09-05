@@ -2,7 +2,8 @@
   const app = {
     shuffledQuestions: [],
     answers: {},
-    gateATriggered: false
+    gateATriggered: false,
+    currentIndex: 0
   };
 
   const normalQuestions = QUESTIONS.filter(function (question) {
@@ -28,6 +29,7 @@
   const progressText = document.getElementById('progressText');
   const submitBtn = document.getElementById('submitBtn');
   const testHint = document.getElementById('testHint');
+  const prevBtn = document.getElementById('prevBtn');
 
   function showScreen(name) {
     Object.values(screens).forEach(function (screen) {
@@ -69,62 +71,99 @@
     return question.kind === 'core' ? option.pole : String(option.value);
   }
 
-  function renderQuestions() {
+  function getDigitFromEvent(event) {
+    if (event.key && /^[1-9]$/.test(event.key)) {
+      return Number(event.key);
+    }
+    if (event.code) {
+      const match = event.code.match(/^(?:Numpad|Digit)(\d)$/);
+      if (match) {
+        return Number(match[1]);
+      }
+    }
+    return null;
+  }
+
+  function renderCurrentQuestion() {
     const visibleQuestions = getVisibleQuestions();
+    const total = visibleQuestions.length;
+    const question = visibleQuestions[app.currentIndex];
 
-    questionList.innerHTML = visibleQuestions.map(function (question, index) {
-      const meta = question.kind === 'core'
-        ? CORE_DIMENSIONS[question.dim].name
-        : question.kind === 'extra'
-          ? EXTRA_DIMENSIONS[question.dim].name
-          : '隐藏题';
+    if (!question) {
+      questionList.innerHTML = '';
+      updateProgress();
+      return;
+    }
 
-      const options = question.options.map(function (option, optionIndex) {
-        const value = getOptionValue(question, option);
-        const code = ['A', 'B', 'C', 'D'][optionIndex] || String(optionIndex + 1);
-        const checked = app.answers[question.id] === value ? 'checked' : '';
+    const meta = question.kind === 'core'
+      ? CORE_DIMENSIONS[question.dim].name
+      : question.kind === 'extra'
+        ? EXTRA_DIMENSIONS[question.dim].name
+        : '隐藏题';
 
-        return `
-          <label class="option">
-            <input type="radio" name="${question.id}" value="${value}" ${checked} />
-            <div class="option-code">${code}</div>
-            <div>${option.label}</div>
-          </label>
-        `;
-      }).join('');
+    const options = question.options.map(function (option, optionIndex) {
+      const value = getOptionValue(question, option);
+      const code = String(optionIndex + 1);
+      const checked = app.answers[question.id] === value ? 'checked' : '';
 
       return `
-        <article class="question">
-          <div class="question-meta">
-            <div class="badge">第 ${index + 1} 题</div>
-            <div>${meta}</div>
-          </div>
-          <div class="question-title">${question.text}</div>
-          <div class="options">${options}</div>
-        </article>
+        <label class="option">
+          <input type="radio" name="${question.id}" value="${value}" ${checked} />
+          <div class="option-code">${code}</div>
+          <div>${option.label}</div>
+        </label>
       `;
     }).join('');
 
+    questionList.innerHTML = `
+      <article class="question">
+        <div class="question-meta">
+          <div class="badge">第 ${app.currentIndex + 1} / ${total} 题</div>
+          <div>${meta}</div>
+        </div>
+        <div class="question-title">${question.text}</div>
+        <div class="options">${options}</div>
+      </article>
+    `;
+
     questionList.querySelectorAll('input[type="radio"]').forEach(function (input) {
       input.addEventListener('change', function (event) {
-        const name = event.target.name;
-        const value = event.target.value;
-        app.answers[name] = value;
-
-        if (name === 'gate_a') {
-          app.gateATriggered = isGateATriggered();
-          if (!app.gateATriggered) {
-            delete app.answers.gate_b;
-          }
-          renderQuestions();
-          return;
-        }
-
-        updateProgress();
+        selectOption(event.target.value);
       });
     });
 
     updateProgress();
+    prevBtn.disabled = app.currentIndex === 0;
+  }
+
+  function selectOption(value) {
+    const visibleQuestions = getVisibleQuestions();
+    const question = visibleQuestions[app.currentIndex];
+    if (!question) return;
+
+    app.answers[question.id] = value;
+
+    if (question.id === 'gate_a') {
+      app.gateATriggered = isGateATriggered();
+      if (!app.gateATriggered) {
+        delete app.answers.gate_b;
+      }
+    }
+
+    const nextQuestions = getVisibleQuestions();
+
+    if (app.currentIndex < nextQuestions.length - 1) {
+      app.currentIndex += 1;
+    }
+
+    renderCurrentQuestion();
+  }
+
+  function goPrev() {
+    if (app.currentIndex > 0) {
+      app.currentIndex -= 1;
+      renderCurrentQuestion();
+    }
   }
 
   function updateProgress() {
@@ -181,6 +220,45 @@
     textarea.select();
     document.execCommand('copy');
     document.body.removeChild(textarea);
+  }
+
+  function captureResult(result) {
+    const shotBtn = document.getElementById('shotBtn');
+    const target = document.querySelector('#result .result-wrap');
+
+    if (!target || typeof html2canvas !== 'function') {
+      shotBtn.disabled = false;
+      shotBtn.textContent = '截图失败';
+      window.setTimeout(function () {
+        shotBtn.textContent = '截图';
+      }, 1400);
+      return;
+    }
+
+    shotBtn.disabled = true;
+    shotBtn.textContent = '生成中…';
+
+    html2canvas(target, {
+      backgroundColor: '#0a0f1e',
+      scale: 2,
+      ignoreElements: function (element) {
+        return element.classList && element.classList.contains('result-actions');
+      }
+    }).then(function (canvas) {
+      const link = document.createElement('a');
+      link.download = 'GBTI-' + result.type.code + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      shotBtn.disabled = false;
+      shotBtn.textContent = '截图';
+    }).catch(function (err) {
+      console.error(err);
+      shotBtn.disabled = false;
+      shotBtn.textContent = '截图失败';
+      window.setTimeout(function () {
+        shotBtn.textContent = '截图';
+      }, 1400);
+    });
   }
 
   function renderResult() {
@@ -241,6 +319,13 @@
 
     document.getElementById('dimList').innerHTML = coreDims.concat(extraDims).join('');
 
+    const shotBtn = document.getElementById('shotBtn');
+    shotBtn.disabled = false;
+    shotBtn.textContent = '截图';
+    shotBtn.onclick = function () {
+      captureResult(result);
+    };
+
     document.getElementById('copyBtn').onclick = function () {
       copyText(buildResultText(result));
       document.getElementById('copyBtn').textContent = '已复制';
@@ -255,6 +340,7 @@
   function startTest() {
     app.answers = {};
     app.gateATriggered = false;
+    app.currentIndex = 0;
 
     const shuffled = shuffle(normalQuestions);
     const insertIndex = Math.floor(Math.random() * shuffled.length) + 1;
@@ -264,11 +350,29 @@
       ...shuffled.slice(insertIndex)
     ];
 
-    renderQuestions();
+    renderCurrentQuestion();
     showScreen('test');
+  }
+
+  function handleKeydown(event) {
+    if (!screens.test.classList.contains('active')) return;
+
+    const digit = getDigitFromEvent(event);
+    if (digit === null) return;
+
+    const visibleQuestions = getVisibleQuestions();
+    const question = visibleQuestions[app.currentIndex];
+    if (!question) return;
+
+    if (digit >= 1 && digit <= question.options.length) {
+      event.preventDefault();
+      selectOption(getOptionValue(question, question.options[digit - 1]));
+    }
   }
 
   document.getElementById('startBtn').addEventListener('click', startTest);
   document.getElementById('submitBtn').addEventListener('click', renderResult);
   document.getElementById('restartBtn').addEventListener('click', startTest);
+  document.addEventListener('keydown', handleKeydown);
+  prevBtn.addEventListener('click', goPrev);
 })();
